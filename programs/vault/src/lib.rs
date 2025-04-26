@@ -15,6 +15,11 @@ pub mod vault {
         ctx.accounts.deposite(1000)?;
         Ok(())
     }
+
+    pub fn withdraw(ctx: Context<Payment>) -> Result<()> {
+        ctx.accounts.withdraw(1000)?;
+        Ok(())
+    }
 }
 
 impl<'info> Initialize<'info> {
@@ -36,6 +41,24 @@ impl<'info> Payment<'info> {
 
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
+        transfer(cpi_ctx, amount)?;
+        Ok(())
+    }
+
+    pub fn withdraw(&mut self, amount: u64) -> Result<()> {
+        let cpi_program = self.system_program.to_account_info();
+
+        let cpi_accounts = Transfer {
+            from: self.vault.to_account_info(),
+            to: self.user.to_account_info(),
+        };
+
+        let key_ref = self.user.key();
+        let vault_bump = self.vault_state.vault_bump;
+        let seeds = &[b"vault", key_ref.as_ref(), &[vault_bump]];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
         transfer(cpi_ctx, amount)?;
         Ok(())
     }
