@@ -20,6 +20,11 @@ pub mod vault {
         ctx.accounts.withdraw(1000)?;
         Ok(())
     }
+
+    pub fn close_vault(ctx: Context<CloseVault>) -> Result<()> {
+        ctx.accounts.close_vault()?;
+        Ok(())
+    }
 }
 
 impl<'info> Initialize<'info> {
@@ -64,7 +69,32 @@ impl<'info> Payment<'info> {
     }
 }
 
-impl VaultState {
+impl<'info> CloseVault<'info> {
+    pub fn close_vault(&mut self) -> Result<()> {
+        let vault_balance = self.vault.to_account_info().lamports();
+
+        if vault_balance > 0 {
+            let cpi_program = self.system_program.to_account_info();
+            let cpi_accounts = Transfer {
+                from: self.vault.to_account_info(),
+                to: self.user.to_account_info(),
+            };
+
+            //seeds for the pds signing
+            let key_ref = self.user.key();
+            let vault_bump = self.vault_state.vault_bump;
+            let seeds = &[b"vault", key_ref.as_ref(), &[vault_bump]];
+            let signer = &[&seeds[..]];
+            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+
+            // transfer the lamports to the user
+            transfer(cpi_ctx, vault_balance)?;
+        }
+        Ok(())
+    }
+}
+
+impl Space for VaultState {
     const INIT_SPACE: usize = 8 + 1 + 1;
 }
 
@@ -95,10 +125,29 @@ pub struct Payment<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
-    #[account(seeds = [b"vault", user.key().as_ref()], bump)]
+    #[account(seeds = [b"vault", user.key().as_ref()], bump = vault_state.state_bump)]
     pub vault_state: Account<'info, VaultState>,
 
-    #[account(seeds = [b"vault", user.key().as_ref()], bump)]
+    #[account(seeds = [b"vault", user.key().as_ref()], bump = vault_state.vault_bump)]
+    pub vault: SystemAccount<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CloseVault<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(mut,
+        close = user,
+        seeds = [b"state",user.key().as_ref()],
+        bump = vault_state.state_bump,
+    )]
+    pub vault_state: Account<'info, VaultState>,
+
+    #[account(mut,
+        seeds=[b"vault",user.key().as_ref()],bump = vault_state.vault_bump)]
     pub vault: SystemAccount<'info>,
 
     pub system_program: Program<'info, System>,
