@@ -36,6 +36,7 @@ impl<'info> Initialize<'info> {
 }
 
 impl<'info> Payment<'info> {
+    // this function doesn't required any seeds because this is done by the user
     pub fn deposite(&mut self, amount: u64) -> Result<()> {
         let cpi_program = self.system_program.to_account_info();
 
@@ -68,6 +69,8 @@ impl<'info> Payment<'info> {
         Ok(())
     }
 }
+
+// here both the withdraw and closeVault functions required seeds because these are the transactions are done by the system program so it needs the seeds to sign the transaction
 
 impl<'info> CloseVault<'info> {
     pub fn close_vault(&mut self) -> Result<()> {
