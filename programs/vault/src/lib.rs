@@ -11,8 +11,8 @@ pub mod vault {
         Ok(())
     }
 
-    pub fn deposite(ctx: Context<Payment>) -> Result<()> {
-        ctx.accounts.deposite(1000)?;
+    pub fn deposite(ctx: Context<Payment>,amount:u64) -> Result<()> {
+        ctx.accounts.deposite(amount)?;
         Ok(())
     }
 
